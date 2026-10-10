@@ -1,0 +1,20 @@
+{
+  "name": "coderelay",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Real-time collaborative code editor with QR room links, persisted in Supabase",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1"
+  }
+}
