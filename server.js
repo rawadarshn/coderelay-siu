@@ -6,7 +6,6 @@ const path = require("path");
 const fs = require("fs");
 const { Server } = require("socket.io");
 const QRCode = require("qrcode");require("dotenv").config();
-const express = require("express");
 const http = require("http");
 const crypto = require("crypto");
 const path = require("path");
