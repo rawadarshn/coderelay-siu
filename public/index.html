@@ -24,7 +24,7 @@
 
 <header class="reveal" style="--d:0">
   <div class="brand"><div class="logo"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M24 18 10 32l14 14"/><path d="M40 18l14 14-14 14"/></svg></div><div><h1>CodeRelay</h1><div class="sub">One editor. Your whole team.</div></div></div>
-  <div class="header-actions"><span id="userChip" class="user-chip hidden"></span><button id="rolesBtn" class="hidden"><span class="label">Manage roles</span></button><button id="termsBtn">Terms &amp; Conditions</button></div>
+  <div class="header-actions"><span id="userChip" class="user-chip hidden"></span><button id="termsBtn">Terms &amp; Conditions</button></div>
 </header>
 <main>
   <div class="intro reveal" style="--d:1"><div><h2>Code together, simply.</h2><p>Share one QR code and edit the same code live. The owner can lock editing while keeping code viewable and copyable. Your workspace is saved, so the link keeps working after the server restarts. Any language.</p></div><span id="roomPill" class="room-pill">New workspace</span></div>
@@ -86,13 +86,6 @@
 <dialog id="delDlg"><h2>Delete this workspace?</h2>
 <p>The workspace link stops working for everyone, and the saved code and history are permanently removed. A copy of the text stays in your own editor.</p>
 <div class="dlg-actions"><button id="delCancel"><span class="label">Cancel</span></button><button id="delConfirm" class="primary"><span class="label">Delete forever</span></button></div></dialog>
-
-<dialog id="rolesDlg"><h2>Manage roles</h2>
-<p>Search by name or number, then choose Admin, Moderator or None. Roles are tags only for now.</p>
-<input id="rolesQ" maxlength="24" placeholder="Name or number" autocomplete="off" aria-label="Search users">
-<ul id="rolesList" class="roles-list"></ul>
-<p id="rolesMsg" class="roles-msg"></p>
-<div class="dlg-actions"><button id="rolesClose"><span class="label">Close</span></button></div></dialog>
 
 <script src="/ot.js"></script>
 <script src="/highlight.js"></script>
