@@ -29,7 +29,7 @@ const SNIPPET_MAX_CHARS = 4000;
 const SNIPPET_MAX_LINES = 60;
 const ROLES = ["admin", "moderator"];                       // the only roles that can be given; "developer" is never a role
 const roleOf = (id, role) => (Number(id) === DEV_ID ? null : ROLES.includes(role) ? role : null);
-const DEV_ID = Number(process.env.DEVELOPER_USER_ID || 1);   // the developer account (user #1 unless you change it in .env)
+const DEV_ID = Number(process.env.DEVELOPER_USER_ID ||4 );   // the developer account (user #1 unless you change it in .env)
 const PALETTE = ["#e8a33d", "#3fb8af", "#6fa8ff", "#b58cff", "#7bd88f", "#ff7eb6", "#d4d46a", "#f08a5d"];
 
 // ---------- encryption at rest (AES-256-GCM) ----------
