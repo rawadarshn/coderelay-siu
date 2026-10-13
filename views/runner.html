@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>CodeRelay runner</title>
+<style>html,body{margin:0;height:100%;background:#fff}iframe{border:0;width:100%;height:100%;display:block;background:#fff}</style>
+</head><body>
+<script>
+/* CodeRelay runner. Served with a CSP `sandbox` header, so this page has an opaque origin:
+   it cannot read the app's storage or cookies, cannot call the app's API, and its only network access is the Python runtime CDN.
+   The app talks to it with postMessage. Running code happens in a Web Worker so an infinite loop can be stopped. */
+(function () {
+  "use strict";
+  var MAX_OUT = 20000, PY_BASE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+  var current = null, pyWorker = null;
+  function send(m) { parent.postMessage(m, "*"); }
+
+  /* ---------- JavaScript syntax check (parses only, never executes) ---------- */
+  var AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  var EOF_LIKE = /end of input|Unterminated|Unexpected end|Unclosed/i;
+  function lintJs(code) {
+    try { new AsyncFunction(code); return []; } catch (e) {
+      if (!(e instanceof SyntaxError)) return [];
+      var msg = e.message, lines = code.split("\n");
+      if (/import statement|export|import\.meta/.test(msg)) return [{ line: 1, message: "ES module syntax (import/export) can't run in the console. Use import() or remove it.", severity: "warning" }];
+      var found = 0;
+      if (lines.length <= 1500) {
+        for (var n = 1; n <= lines.length; n++) {
+          try { new AsyncFunction(lines.slice(0, n).join("\n")); } catch (e2) {
+            if (e2 instanceof SyntaxError && !EOF_LIKE.test(e2.message)) { found = n; msg = e2.message; break; }
+          }
+        }
+      }
+      if (!found) { found = lines.length; while (found > 1 && !lines[found - 1].trim()) found--; if (/end of input/i.test(msg)) msg = "Unexpected end of input. A closing bracket, quote or brace is probably missing."; }
+      return [{ line: found, message: msg, severity: "error" }];
+    }
+  }
+
+  /* ---------- worker sources ---------- */
+  var COMMON = [
+    "var fmt=function(v,d){d=d||0;if(typeof v==='string')return v;if(v===undefined)return 'undefined';if(v===null)return 'null';",
+    "if(typeof v==='bigint')return v+'n';if(typeof v==='symbol')return v.toString();if(typeof v==='function')return '[Function '+(v.name||'anonymous')+']';",
+    "if(v instanceof Error)return v.stack||String(v);",
+    "try{var seen=[];return JSON.stringify(v,function(k,x){if(typeof x==='bigint')return x+'n';if(typeof x==='function')return '[Function]';if(x&&typeof x==='object'){if(seen.indexOf(x)>-1)return '[Circular]';seen.push(x);}return x;},2);}catch(e){return String(v);}};",
+    "var post=function(t,text,line){postMessage({t:t,text:text,line:line});};"
+  ].join("");
+  var JS_WORKER = COMMON + [
+    "['log','info','debug','table','dir'].forEach(function(k){console[k]=function(){post('log',[].slice.call(arguments).map(function(x){return fmt(x);}).join(' '));};});",
+    "console.warn=function(){post('info',[].slice.call(arguments).map(function(x){return fmt(x);}).join(' '));};",
+    "console.error=function(){post('error',[].slice.call(arguments).map(function(x){return fmt(x);}).join(' '));};",
+    "console.clear=function(){};",
+    "var lineOf=function(err){var m=String(err&&err.stack||'').match(/<anonymous>:(\\d+):\\d+/);return m?Math.max(1,Number(m[1])-2):undefined;};",
+    "self.addEventListener('unhandledrejection',function(e){var r=e.reason;post('error','Unhandled promise rejection: '+(r&&r.message?r.message:fmt(r)),lineOf(r));e.preventDefault();});",
+    "self.addEventListener('error',function(e){post('error',(e.message||'Error'),e.lineno?Math.max(1,e.lineno-2):undefined);e.preventDefault();});",
+    "onmessage=async function(ev){var AF=Object.getPrototypeOf(async function(){}).constructor;try{var r=await new AF(ev.data)();if(r!==undefined)post('log','← '+fmt(r));postMessage({done:true,ok:true});}catch(err){post('error',(err&&err.name?err.name+': ':'')+(err&&err.message?err.message:fmt(err)),lineOf(err));postMessage({done:true,ok:false});}};"
+  ].join("");
+  var PY_WORKER = COMMON + [
+    "importScripts('" + PY_BASE + "pyodide.js');var py=null;",
+    "onmessage=async function(ev){try{",
+    "if(!py){post('info','Loading the Python runtime (first run only, about 10 MB)…');py=await loadPyodide({indexURL:'" + PY_BASE + "'});}",
+    "py.setStdout({batched:function(s){post('log',s);}});py.setStderr({batched:function(s){post('error',s);}});",
+    "var ns=py.globals.get('dict')();try{await py.runPythonAsync(ev.data,{globals:ns});}finally{ns.destroy();}",
+    "postMessage({done:true,ok:true});",
+    "}catch(err){var m=String(err&&err.message||err),all=m.match(/File \"<exec>\", line (\\d+)/g),ln;if(all){ln=Number(all[all.length-1].match(/(\\d+)$/)[1]);}",
+    "var tail=m.trim().split('\\n').slice(-1)[0];post('error',tail,ln);postMessage({done:true,ok:false});}};"
+  ].join("");
+
+  function blobWorker(src) { return new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" }))); }
+
+  var SQL_BASE = "https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/";
+  var TS_URL = "https://cdn.jsdelivr.net/npm/typescript@5.6.3/lib/typescript.js";
+  var LUA_URL = "https://cdn.jsdelivr.net/npm/fengari-web@0.1.4/dist/fengari-web.js";
+  var SQL_WORKER = COMMON + "importScripts('" + SQL_BASE + "sql-wasm.js');onmessage=async function(ev){try{var SQL=await initSqlJs({locateFile:function(f){return '" + SQL_BASE + "'+f;}});var db=new SQL.Database();var res=db.exec(ev.data);res.forEach(function(r){post('log',r.columns.join(' | '));post('log',r.columns.map(function(c){return '-'.repeat(Math.max(3,c.length));}).join('-+-'));r.values.forEach(function(row){post('log',row.map(function(v){return v===null?'NULL':String(v);}).join(' | '));});});if(!res.length)post('info','Statements ran. No rows to show.');postMessage({done:true,ok:true});}catch(err){post('error',String(err&&err.message||err));postMessage({done:true,ok:false});}};";
+
+  function loadScript(url, label) {
+    return new Promise(function (res, rej) {
+      var el = document.createElement("script"); el.src = url; el.onload = res;
+      el.onerror = function () { rej(new Error("Could not download the " + label + " runtime. Check your internet connection and try again.")); };
+      document.head.appendChild(el);
+    });
+  }
+
+  function finish(id, ok, started, extra) {
+    if (!current || current.id !== id) return;
+    clearTimeout(current.timer); clearTimeout(current.quiet);
+    if (current.worker && !current.persistent) { try { current.worker.terminate(); } catch (e) {} }
+    current = null;
+    send({ type: "done", id: id, ok: ok, ms: Math.round(performance.now() - started), stopped: extra || null });
+  }
+  function stopCurrent(reason) {
+    if (!current) return;
+    var c = current;
+    if (c.persistent && pyWorker) { try { pyWorker.terminate(); } catch (e) {} pyWorker = null; }
+    finish(c.id, false, c.started, reason);
+  }
+
+  async function run(m) {
+    stopCurrent("replaced");
+    var id = m.id, started = performance.now(), out = 0, capped = false, lang = m.lang, code = m.code, noLines = false;
+    function emit(t, text, line) {
+      if (capped) return;
+      out += String(text).length;
+      if (out > MAX_OUT) { capped = true; send({ type: "out", id: id, t: "info", text: "Output cut off after 20,000 characters." }); return; }
+      send({ type: "out", id: id, t: t, text: String(text), line: noLines ? undefined : line });
+    }
+    function fail(text, line) { emit("error", text, line); current = null; send({ type: "done", id: id, ok: false, ms: Math.round(performance.now() - started) }); }
+    current = { id: id, lang: lang, worker: null, started: started, quiet: null, timer: null, persistent: false };
+
+    if (lang === "ts") {
+      try {
+        await loadScript(TS_URL, "TypeScript");
+        var r = ts.transpileModule(code, { reportDiagnostics: true, compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } });
+        var d = (r.diagnostics || [])[0];
+        if (d) return fail(ts.flattenDiagnosticMessageText(d.messageText, "\n"), d.start != null ? code.slice(0, d.start).split("\n").length : undefined);
+        code = r.outputText; lang = "js"; noLines = true;     // lines can shift when types are removed
+      } catch (e) { return fail(e.message); }
+    }
+    if (!current || current.id !== id) return;
+    if (lang === "lua") {
+      try {
+        await loadScript(LUA_URL, "Lua");
+        var f = fengari, lua = f.lua, aux = f.lauxlib, tl = f.to_luastring, L = aux.luaL_newstate(), ok = true;
+        f.lualib.luaL_openlibs(L);
+        lua.lua_pushcfunction(L, function (L2) { var n = lua.lua_gettop(L2), p = []; for (var i = 1; i <= n; i++) { aux.luaL_tolstring(L2, i); p.push(lua.lua_tojsstring(L2, -1)); lua.lua_pop(L2, 1); } emit("log", p.join("\t")); return 0; });
+        lua.lua_setglobal(L, tl("print"));
+        var st = aux.luaL_loadstring(L, tl(code)); if (st === 0) st = lua.lua_pcall(L, 0, 0, 0);
+        if (st !== 0) { var msg = lua.lua_tojsstring(L, -1), mm = msg.match(/\]:(\d+):/); emit("error", msg.replace(/^\[string "[\s\S]*?"\]:\d+:\s*/, ""), mm ? Number(mm[1]) : undefined); ok = false; }
+        return finish(id, ok, started);
+      } catch (e) { return fail(e.message); }
+    }
+    if (lang === "js") {
+      var errs = lintJs(code).filter(function (e) { return e.severity === "error"; });
+      if (errs.length && !noLines) return fail("SyntaxError: " + errs[0].message, errs[0].line);
+    }
+    var worker;
+    if (lang === "py") { pyWorker = pyWorker || blobWorker(PY_WORKER); worker = pyWorker; current.persistent = true; }
+    else worker = blobWorker(lang === "sql" ? SQL_WORKER : JS_WORKER);
+    current.worker = worker;
+    current.timer = setTimeout(function () { send({ type: "out", id: id, t: "error", text: "Stopped: the code ran longer than " + Math.round(m.timeout / 1000) + " seconds." }); stopCurrent("timeout"); }, m.timeout);
+    worker.onmessage = function (e) {
+      if (!current || current.id !== id) return;
+      var d = e.data || {};
+      if (d.done) {
+        if (lang !== "js") return finish(id, d.ok, started);
+        clearTimeout(current.quiet);                       // let timers/promises print for a moment
+        current.quiet = setTimeout(function () { finish(id, d.ok, started); }, 500);
+        current.mainOk = d.ok; return;
+      }
+      emit(d.t, d.text, d.line);
+      if (current.quiet) { clearTimeout(current.quiet); current.quiet = setTimeout(function () { finish(id, current ? current.mainOk : true, started); }, 500); }
+    };
+    worker.onerror = function (e) { emit("error", e.message || "Worker error"); if (current && current.persistent) pyWorker = null; finish(id, false, started); };
+    worker.postMessage(code);
+  }
+
+  function preview(html) {
+    document.body.innerHTML = "";
+    var f = document.createElement("iframe");
+    f.setAttribute("sandbox", "allow-scripts allow-forms allow-modals");
+    f.srcdoc = String(html);
+    document.body.appendChild(f);
+  }
+
+  window.addEventListener("message", function (e) {
+    if (e.source !== parent) return;
+    var m = e.data || {};
+    if (m.type === "run" && /^(js|ts|py|sql|lua)$/.test(m.lang)) run({ id: m.id, lang: m.lang, code: String(m.code || ""), timeout: Math.min(Number(m.timeout) || 5000, 30000) });
+    else if (m.type === "stop") stopCurrent("stopped");
+    else if (m.type === "lint" && m.lang === "js") send({ type: "lint-result", id: m.id, errors: lintJs(String(m.code || "")) });
+    else if (m.type === "preview") preview(m.html);
+  });
+  send({ type: "ready" });
+})();
+</script></body></html>

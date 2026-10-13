@@ -4,172 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#161618">
+<meta name="referrer" content="no-referrer">
 <title>CodeRelay — Shared coding room</title>
 <link rel="icon" href="/favicon">
 <link rel="apple-touch-icon" href="/favicon">
-<style>
-:root{
-  --bg:#161618;--surface:#1e1e21;--surface-2:#26262a;--editor:#121214;
-  --line:#2f2f34;--line-strong:#3d3d43;
-  --text:#ececee;--muted:#9a9aa3;--faint:#6c6c75;
-  --red:#d9303e;--red-hover:#e5434f;--red-deep:#a8212d;--red-tint:rgba(217,48,62,.12);
-  --ease:cubic-bezier(.22,.61,.36,1);--ease-out:cubic-bezier(.16,1,.3,1);
-  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  color:var(--text);background:var(--bg);color-scheme:dark;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);-webkit-font-smoothing:antialiased}
-body.booting{overflow:hidden}
-::selection{background:var(--red);color:#fff}
-::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:8px;border:2px solid var(--editor)}::-webkit-scrollbar-thumb:hover{background:#55555d}
-
-/* ---------- entrance choreography (starts after splash) ---------- */
-.reveal{opacity:0;transform:translateY(14px)}
-body.ready .reveal{animation:rise .7s var(--ease-out) forwards;animation-delay:calc(var(--d,0) * 90ms)}
-@keyframes rise{to{opacity:1;transform:none}}
-
-/* ---------- header ---------- */
-header{border-bottom:1px solid var(--line);background:var(--surface);padding:14px clamp(16px,4vw,42px);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:12px}
-.logo{width:38px;height:38px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--line-strong);background:var(--bg);transition:border-color .3s var(--ease),transform .5s var(--ease-out)}
-.logo svg{width:22px;height:22px;stroke:var(--red);fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
-.brand:hover .logo{border-color:var(--red);transform:rotate(-6deg)}
-.brand h1{font-size:18px;margin:0;letter-spacing:-.2px;font-weight:700}
-.sub{font-size:12px;color:var(--muted);margin-top:2px}
-
-/* ---------- buttons ---------- */
-button,input,select,textarea{font:inherit;color:inherit}
-button{
-  position:relative;overflow:hidden;isolation:isolate;cursor:pointer;
-  border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);
-  padding:9px 14px;border-radius:6px;font-size:13px;font-weight:600;letter-spacing:.1px;
-  transition:transform .28s var(--ease),border-color .28s var(--ease),color .28s var(--ease),background-color .28s var(--ease),box-shadow .28s var(--ease),opacity .2s;
-}
-button::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--red);transform:translateX(-102%);transition:transform .45s var(--ease-out)}
-button:hover:not(:disabled){border-color:var(--red);color:#fff;transform:translateY(-1px);box-shadow:0 6px 16px -8px rgba(217,48,62,.55)}
-button:hover:not(:disabled)::before{transform:none}
-button:active:not(:disabled){transform:translateY(0) scale(.97);box-shadow:none;transition-duration:.12s}
-button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
-button:disabled{opacity:.5;cursor:not-allowed}
-.primary{background:var(--red);border-color:var(--red);color:#fff}
-.primary::before{background:var(--red-deep)}
-.primary:hover:not(:disabled){border-color:var(--red-deep)}
-.ripple{position:absolute;z-index:0;border-radius:50%;background:rgba(255,255,255,.28);transform:scale(0);animation:ripple .65s var(--ease-out) forwards;pointer-events:none}
-@keyframes ripple{to{transform:scale(1);opacity:0}}
-button.is-loading{pointer-events:none;padding-right:38px}
-button.is-loading::after{content:"";position:absolute;right:13px;top:50%;width:13px;height:13px;margin-top:-7px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-button .label{display:inline-block;transition:opacity .18s,transform .18s var(--ease)}
-button .label.swap{opacity:0;transform:translateY(5px)}
-
-/* ---------- layout ---------- */
-main{width:100%;max-width:1300px;margin:26px auto;padding:0 18px;flex:1}
-.intro{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;flex-wrap:wrap;margin-bottom:18px}
-.intro h2{margin:0 0 6px;font-size:26px;letter-spacing:-.6px}
-.intro p{margin:0;color:var(--muted);font-size:14px;line-height:1.55;max-width:640px}
-.room-pill{border:1px solid var(--line-strong);border-radius:99px;padding:5px 11px;font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);transition:color .3s,border-color .3s,background-color .3s}
-.room-pill.live{color:#fff;border-color:var(--red);background:var(--red-tint)}
-.layout{display:grid;grid-template-columns:minmax(0,1fr) 295px;gap:16px;align-items:start}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;transition:border-color .35s var(--ease)}
-.card:focus-within{border-color:var(--line-strong)}
-.editor-top{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.editor-top label{font-size:11px;letter-spacing:.8px;color:var(--faint)}
-.editor-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.lock-indicator{font-size:11px;color:#fff;background:var(--red-tint);border:1px solid var(--red);padding:5px 9px;border-radius:6px;animation:fadein .35s var(--ease-out)}
-@keyframes fadein{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
-select{margin-left:8px;max-width:170px;padding:7px 28px 7px 9px;border:1px solid var(--line-strong);border-radius:6px;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239a9aa3' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center;appearance:none;-webkit-appearance:none;cursor:pointer;font-size:13px;transition:border-color .25s}
-select:hover:not(:disabled){border-color:var(--red)}
-select:disabled{opacity:.5;cursor:not-allowed}
-.status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;padding-left:4px}
-.dot{width:8px;height:8px;background:var(--text);border-radius:50%;transition:background-color .3s;animation:pulse 2.2s ease-out infinite}
-.dot.off{background:var(--faint);animation:none}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(236,236,238,.45)}70%,100%{box-shadow:0 0 0 7px rgba(236,236,238,0)}}
-.editor-wrap{position:relative;background:var(--editor)}
-#hl,#code{margin:0;padding:18px;font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;tab-size:2;white-space:pre;letter-spacing:normal;font-variant-ligatures:none}
-#hl{position:absolute;inset:0;overflow:hidden;pointer-events:none;color:#e9e9ec;z-index:0}
-#hl code{display:block;font:inherit;will-change:transform}
-#code{position:relative;z-index:1;display:block;width:100%;height:58vh;min-height:340px;resize:vertical;background:transparent;color:transparent;-webkit-text-fill-color:transparent;border:0;outline:none;overflow:auto;caret-color:var(--red);transition:box-shadow .3s var(--ease)}
-#code::selection{background:rgba(217,48,62,.38);-webkit-text-fill-color:transparent}
-#code:focus{box-shadow:inset 2px 0 0 var(--red)}
-.t-kw{color:#f0626f}.t-lit{color:#569cd6}.t-str{color:#ce9178}.t-num{color:#b5cea8}.t-com{color:#6a9955;font-style:italic}
-.t-fn{color:#dcdcaa}.t-type{color:#4ec9b0}.t-prop{color:#9cdcfe}.t-tag{color:#f0626f}.t-attr{color:#9cdcfe}.t-op{color:#c8c8cf}.t-head{color:#f0626f;font-weight:700}
-#code::placeholder{color:var(--faint);-webkit-text-fill-color:var(--faint)}
-.readonly ~ #code,.card.is-readonly #code{color:#b4b4bb}
-.editor-bottom{padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);color:var(--faint);font-size:12px}
-.side{padding:18px}
-.side h3{font-size:14px;margin:0 0 8px;letter-spacing:.2px}
-.side p{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 14px}
-.qr-wrap{display:flex;justify-content:center;padding:12px;background:#fff;border-radius:8px;min-height:160px;align-items:center;transition:transform .4s var(--ease-out)}
-.qr-wrap:hover{transform:scale(1.02)}
-.qr-wrap img{width:100%;max-width:220px;height:auto}
-.qr-wrap .sub{color:#555;text-align:center;font-size:12px}
-.qr-wrap img.pop{animation:qrin .6s var(--ease-out)}
-@keyframes qrin{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
-.linkbox{display:flex;gap:6px;margin-top:10px}
-.linkbox input{width:100%;min-width:0;font-size:11px;padding:8px;border:1px solid var(--line-strong);border-radius:6px;background:var(--bg);transition:border-color .25s}
-.linkbox input:focus{border-color:var(--red);outline:none}
-.side button{width:100%;margin-top:10px}
-.divider{border:0;border-top:1px solid var(--line);margin:20px 0}
-.notice{border:1px solid var(--line);border-left:2px solid var(--line-strong);background:var(--bg);border-radius:6px;padding:10px 12px;font-size:12px;line-height:1.55;color:var(--muted);overflow-wrap:anywhere}
-.notice.good{border-left-color:var(--red);color:var(--text)}
-.notice.bad{background:var(--red-tint);border-color:rgba(217,48,62,.5);border-left-color:var(--red);color:#ffb4ba}
-.notice.pop{animation:notice .5s var(--ease-out)}
-@keyframes notice{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.hidden{display:none!important}
-
-/* ---------- footer ---------- */
-.footer{max-width:1300px;width:100%;margin:0 auto;padding:6px 18px 24px;color:var(--faint);font-size:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.crown{position:relative;display:inline-block;padding-bottom:3px;color:var(--muted);cursor:default;transition:color .3s}
-.crown::after{content:"";position:absolute;left:0;bottom:0;height:1px;width:100%;background:var(--red);transform:scaleX(0);transform-origin:left;transition:transform .5s var(--ease-out)}
-body.ready .crown::after{animation:draw 1.2s .9s var(--ease-out) forwards}
-.crown:hover{color:var(--text)}
-@keyframes draw{to{transform:scaleX(.28)}}
-.crown:hover::after{animation:none;transform:scaleX(1)}
-.crown span.w{display:inline-block;opacity:0;transform:translateY(6px)}
-body.ready .crown span.w{animation:rise .6s var(--ease-out) forwards;animation-delay:calc(.5s + var(--i) * 80ms)}
-
-/* ---------- splash ---------- */
-#splash{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:transform .9s var(--ease-out)}
-#splash.leaving{transform:translateY(-100%)}
-#splash.leaving .splash-inner,#splash.leaving .splash-credit{opacity:0;transform:translateY(-14px);transition:opacity .35s,transform .5s var(--ease)}
-.splash-inner{text-align:center;display:flex;flex-direction:column;align-items:center}
-.splash-mark{width:64px;height:64px;margin-bottom:22px;overflow:visible}
-.splash-mark path{fill:none;stroke:var(--red);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:60;stroke-dashoffset:60;animation:stroke .9s var(--ease-out) forwards}
-.splash-mark path:nth-child(2){animation-delay:.12s}.splash-mark path:nth-child(3){animation-delay:.3s;stroke:var(--text)}
-@keyframes stroke{to{stroke-dashoffset:0}}
-.splash-title{font-size:clamp(38px,8vw,64px);font-weight:700;letter-spacing:-1.5px;line-height:1;display:flex;overflow:hidden;padding:4px 2px 8px}
-.splash-title span{display:inline-block;transform:translateY(110%);animation:letter .75s var(--ease-out) forwards;animation-delay:calc(.35s + var(--i) * 55ms)}
-.splash-title span:nth-child(n+5){color:var(--red)}
-@keyframes letter{to{transform:none}}
-.splash-line{width:0;height:2px;background:var(--red);margin-top:14px;animation:line 1s 1.05s var(--ease-out) forwards}
-@keyframes line{to{width:min(220px,50vw)}}
-.splash-credit{position:absolute;bottom:clamp(28px,7vh,56px);left:0;right:0;text-align:center;font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);display:flex;justify-content:center;gap:.6em;flex-wrap:wrap;padding:0 16px}
-.splash-credit .w{display:inline-block;opacity:0;transform:translateY(10px);letter-spacing:6px;animation:credit .9s var(--ease-out) forwards;animation-delay:calc(1.3s + var(--i) * 110ms)}
-.splash-credit .w.accent{color:var(--red)}
-@keyframes credit{to{opacity:1;transform:none;letter-spacing:3px}}
-
-/* ---------- dialog ---------- */
-dialog{max-width:560px;width:calc(100% - 30px);border:1px solid var(--line-strong);border-radius:10px;padding:24px;color:var(--text);background:var(--surface)}
-dialog[open]{animation:dialog-in .4s var(--ease-out)}
-dialog.closing{animation:dialog-out .22s var(--ease) forwards}
-dialog::backdrop{background:rgba(8,8,9,.72);animation:fade .35s ease}
-dialog.closing::backdrop{animation:fade .22s ease reverse forwards}
-@keyframes dialog-in{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
-@keyframes dialog-out{to{opacity:0;transform:translateY(8px) scale(.98)}}
-@keyframes fade{from{opacity:0}to{opacity:1}}
-dialog h2{margin:0 0 14px;font-size:20px}
-dialog p{font-size:13px;line-height:1.65;color:var(--muted)}
-dialog strong{color:var(--text)}
-dialog button{margin-top:6px}
-
-@media(max-width:850px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr;gap:14px}.side .side-section{min-width:0}.side .full{grid-column:1/-1}.qr-wrap{min-height:130px}#code{height:55vh}}
-@media(max-width:540px){.side{display:block}.intro h2{font-size:22px}#code{min-height:300px;height:52vh}.header-actions{width:100%}.header-actions button{width:100%}.splash-credit{letter-spacing:2px}}
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}
-  .reveal{opacity:1;transform:none}.crown span.w{opacity:1;transform:none}
-}
-</style>
+<link rel="stylesheet" href="/style.css">
 </head>
 <body class="booting">
 
@@ -181,40 +20,31 @@ dialog button{margin-top:6px}
   </div>
   <div class="splash-credit" data-split="words" data-accent="Crown Lab Team" aria-hidden="true">A Crown Lab Team project</div>
 </div>
-<script>
-// Split text into animated pieces right away, before first paint.
-(function(){
-  document.querySelectorAll("[data-split]").forEach(function(el){
-    var text=el.textContent.trim(), mode=el.dataset.split, frag=document.createDocumentFragment();
-    if(mode==="chars"){
-      text.split("").forEach(function(ch,i){var s=document.createElement("span");s.textContent=ch;s.style.setProperty("--i",i);frag.appendChild(s);});
-    } else {
-      text.split(" ").forEach(function(w,i){var s=document.createElement("span");s.className="w";s.textContent=w;s.style.setProperty("--i",i);frag.appendChild(s);});
-    }
-    el.textContent="";el.appendChild(frag);
-  });
-  var accent=document.querySelectorAll(".splash-credit .w");
-  // highlight the team name words
-  accent.forEach(function(w){if(/^(Crown|Lab|Team)$/.test(w.textContent))w.classList.add("accent");});
-})();
-</script>
+
 
 <header class="reveal" style="--d:0">
   <div class="brand"><div class="logo"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M24 18 10 32l14 14"/><path d="M40 18l14 14-14 14"/></svg></div><div><h1>CodeRelay</h1><div class="sub">One editor. Your whole team.</div></div></div>
-  <div class="header-actions"><button id="termsBtn">Terms &amp; Conditions</button></div>
+  <div class="header-actions"><span id="userChip" class="user-chip hidden"></span><button id="rolesBtn" class="hidden"><span class="label">Manage roles</span></button><button id="termsBtn">Terms &amp; Conditions</button></div>
 </header>
 <main>
   <div class="intro reveal" style="--d:1"><div><h2>Code together, simply.</h2><p>Share one QR code and edit the same code live. The owner can lock editing while keeping code viewable and copyable. Your workspace is saved, so the link keeps working after the server restarts. Any language.</p></div><span id="roomPill" class="room-pill">New workspace</span></div>
   <div class="layout">
     <section class="card reveal" style="--d:2" id="editorCard">
       <div class="editor-top">
-        <div><label for="language">LANGUAGE</label><select id="language">
-          <option>Auto detect</option><option>Plain text</option><option>JavaScript</option><option>TypeScript</option><option>Python</option><option>HTML</option><option>CSS</option><option>Java</option><option>C</option><option>C++</option><option>C#</option><option>Go</option><option>Rust</option><option>PHP</option><option>Ruby</option><option>Swift</option><option>Kotlin</option><option>SQL</option><option>Shell</option><option>JSON</option><option>YAML</option><option>Markdown</option><option>Other</option>
-        </select></div>
-        <div class="editor-actions"><span id="lockIndicator" class="lock-indicator hidden">Read-only · locked</span><button id="copyCode"><span class="label">Copy code</span></button><button id="lockBtn" class="hidden"><span class="label">Lock editing</span></button><div class="status"><span id="statusDot" class="dot off"></span><span id="status">Not connected</span></div></div>
+        <div class="top-left"><div class="seg" role="group" aria-label="View"><button id="viewCode" class="seg-btn" aria-pressed="true"><span class="label">Code</span></button><button id="viewPreview" class="seg-btn" aria-pressed="false"><span class="label">Preview</span></button></div><div><label for="language">LANGUAGE</label><select id="language">
+          <option>Auto detect</option><option>Plain text</option><option>JavaScript</option><option>TypeScript</option><option>Python</option><option>HTML</option><option>CSS</option><option>Java</option><option>C</option><option>C++</option><option>C#</option><option>Go</option><option>Rust</option><option>PHP</option><option>Ruby</option><option>Lua</option><option>Swift</option><option>Kotlin</option><option>SQL</option><option>Shell</option><option>JSON</option><option>YAML</option><option>Markdown</option><option>Other</option>
+        </select></div></div>
+        <div class="editor-actions"><span id="lockIndicator" class="lock-indicator hidden">Read-only · locked</span><button id="runBtn" class="primary" title="Run the code (Ctrl+Enter)"><span class="label">Run</span></button><button id="copyCode"><span class="label">Copy code</span></button><button id="lockBtn" class="hidden"><span class="label">Lock editing</span></button><span id="avatars" class="avatars" aria-label="People connected"></span><div class="status"><span id="statusDot" class="dot off"></span><span id="status">Not connected</span></div></div>
       </div>
       <div class="editor-wrap"><pre id="hl" aria-hidden="true"><code></code></pre><textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" placeholder="// Write or paste code here. Share the room so your team can edit with you."></textarea></div>
+      <div id="previewBox" class="preview-box hidden"><div id="previewHint" class="preview-hint hidden">Preview works for HTML and CSS. Set the language to HTML or CSS.</div></div>
       <div class="editor-bottom"><span id="charCount">0 characters</span><span id="syncState">Changes sync while connected</span></div>
+    
+      <div class="console" id="consolePanel">
+        <div class="console-bar"><span class="console-title">Console</span><span id="consoleLang" class="console-lang">JavaScript and Python run here</span><span class="grow"></span>
+          <button id="stopBtn" class="small hidden"><span class="label">Stop</span></button><button id="clearBtn" class="small"><span class="label">Clear</span></button></div>
+        <div id="consoleOut" class="console-out" role="log" aria-live="polite"><div class="cl cl-hint">Press Run (or Ctrl+Enter) to run your code. Output appears here.</div></div>
+      </div>
     </section>
     <aside class="card side reveal" style="--d:3">
       <div class="side-section">
@@ -223,10 +53,12 @@ dialog button{margin-top:6px}
         <div class="linkbox"><input id="shareLink" readonly placeholder="Workspace link appears here"><button id="copyLink" style="width:auto;margin:0"><span class="label">Copy</span></button></div>
         <button id="createRoom" class="primary"><span class="label">Create workspace &amp; QR</span></button>
         <button id="newRoom"><span class="label">Create a new workspace</span></button>
+        <button id="deleteRoom" class="danger hidden"><span class="label">Delete workspace</span></button>
       </div>
       <hr class="divider full">
       <div class="side-section">
-        <h3>Live team status</h3><p>Connected editors see the same current code. Only the latest version is saved; there is no timeline or undo history.</p>
+        <h3>Who's here <span id="peerCount" class="badge">0</span></h3>
+        <ul id="peerList" class="peer-list" aria-live="polite"></ul>
         <div id="notice" class="notice">Create a workspace first. Once created, it is saved and stays available after server restarts.</div>
       </div>
     </aside>
@@ -243,410 +75,27 @@ dialog button{margin-top:6px}
 <p><strong>6. Responsible use.</strong> Use this service only for lawful collaboration. These terms are a draft, not legal advice.</p>
 <button id="closeTerms"><span class="label">Close</span></button></dialog>
 
+
+
+<dialog id="nameDlg"><h2>What should your team call you?</h2>
+<p>Enter your name once. You get a number, and both stay with this browser. They can't be changed later.</p>
+<input id="nameInput" maxlength="24" placeholder="Your name" autocomplete="off" aria-label="Your name">
+<p id="nameErr" class="name-err hidden" role="status"></p>
+<button id="nameSave" class="primary"><span class="label">Continue</span></button></dialog>
+
+<dialog id="delDlg"><h2>Delete this workspace?</h2>
+<p>The workspace link stops working for everyone, and the saved code and history are permanently removed. A copy of the text stays in your own editor.</p>
+<div class="dlg-actions"><button id="delCancel"><span class="label">Cancel</span></button><button id="delConfirm" class="primary"><span class="label">Delete forever</span></button></div></dialog>
+
+<dialog id="rolesDlg"><h2>Manage roles</h2>
+<p>Search by name or number, then choose Admin, Moderator or None. Roles are tags only for now.</p>
+<input id="rolesQ" maxlength="24" placeholder="Name or number" autocomplete="off" aria-label="Search users">
+<ul id="rolesList" class="roles-list"></ul>
+<p id="rolesMsg" class="roles-msg"></p>
+<div class="dlg-actions"><button id="rolesClose"><span class="label">Close</span></button></div></dialog>
+
+<script src="/ot.js"></script>
+<script src="/highlight.js"></script>
 <script src="/socket.io/socket.io.js"></script>
-<script>
-(() => {
-const $ = id => document.getElementById(id);
-const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const socket = io();
-let roomId = null, isApplyingRemote = false, sendTimer = null, creating = false, isOwner = false, isLocked = false;
-const OWNER_KEYS_STORAGE = "coderelay-owner-keys-v1";
-const MAX_CODE_LENGTH = 80000;
-
-/* ---------- splash ---------- */
-function endSplash() {
-  const splash = $("splash");
-  if (!splash) return;
-  splash.classList.add("leaving");
-  document.body.classList.remove("booting");
-  document.body.classList.add("ready");
-  setTimeout(() => splash.remove(), reduceMotion ? 50 : 1000);
-}
-window.addEventListener("load", () => setTimeout(endSplash, reduceMotion ? 150 : 3000));
-
-/* ---------- button feel: ripple + label swap ---------- */
-document.addEventListener("pointerdown", e => {
-  const btn = e.target.closest("button");
-  if (!btn || btn.disabled || reduceMotion) return;
-  const rect = btn.getBoundingClientRect();
-  const size = Math.max(rect.width, rect.height) * 2;
-  const r = document.createElement("span");
-  r.className = "ripple";
-  r.style.width = r.style.height = size + "px";
-  r.style.left = (e.clientX - rect.left - size / 2) + "px";
-  r.style.top = (e.clientY - rect.top - size / 2) + "px";
-  btn.appendChild(r);
-  r.addEventListener("animationend", () => r.remove());
-});
-function setLabel(btn, text) {
-  const label = btn.querySelector(".label");
-  if (!label || label.textContent === text) return;
-  if (reduceMotion) { label.textContent = text; return; }
-  label.classList.add("swap");
-  setTimeout(() => { label.textContent = text; label.classList.remove("swap"); }, 170);
-}
-function flashLabel(btn, text, ms = 1600) {
-  const label = btn.querySelector(".label");
-  const original = btn.dataset.label || (btn.dataset.label = label.textContent);
-  setLabel(btn, text);
-  clearTimeout(btn._flash);
-  btn._flash = setTimeout(() => setLabel(btn, original), ms);
-}
-
-/* ---------- owner key storage ---------- */
-function getOwnerKey(id) {
-  try { return JSON.parse(localStorage.getItem(OWNER_KEYS_STORAGE) || "{}")[id] || ""; } catch { return ""; }
-}
-function saveOwnerKey(id, token) {
-  try { const keys = JSON.parse(localStorage.getItem(OWNER_KEYS_STORAGE) || "{}"); keys[id] = token; localStorage.setItem(OWNER_KEYS_STORAGE, JSON.stringify(keys)); } catch {}
-}
-
-/* ---------- UI state ---------- */
-function applyPermissions() {
-  const readOnly = isLocked && !isOwner;
-  $("code").readOnly = readOnly;
-  $("language").disabled = readOnly;
-  $("lockBtn").classList.toggle("hidden", !isOwner);
-  setLabel($("lockBtn"), isLocked ? "Unlock editing" : "Lock editing");
-  $("lockBtn").dataset.label = isLocked ? "Unlock editing" : "Lock editing";
-  $("lockIndicator").classList.toggle("hidden", !readOnly);
-  $("editorCard").classList.toggle("is-readonly", readOnly);
-  if (readOnly) $("syncState").textContent = "Read-only · copying allowed";
-}
-function setStatus(text, connected) {
-  $("status").textContent = text;
-  $("statusDot").classList.toggle("off", !connected);
-}
-function showNotice(text, type = "") {
-  const n = $("notice");
-  n.className = "notice" + (type ? " " + type : "");
-  n.textContent = text;
-  void n.offsetWidth;
-  n.classList.add("pop");
-}
-function updateCount() { $("charCount").textContent = $("code").value.length.toLocaleString() + " characters"; }
-function updateUrl() {
-  if (!roomId) return;
-  const url = location.origin + "/room/" + roomId;
-  $("shareLink").value = url;
-  $("roomPill").textContent = "Room " + roomId.slice(0, 7);
-  $("roomPill").classList.add("live");
-  const qr = $("qr");
-  const src = "/api/qr?url=" + encodeURIComponent(url);
-  if (qr.getAttribute("src") !== src) {
-    qr.classList.remove("pop");
-    qr.src = src;
-    qr.onload = () => { void qr.offsetWidth; qr.classList.add("pop"); };
-  }
-  qr.classList.remove("hidden");
-  $("qrPlaceholder").classList.add("hidden");
-}
-function setCreating(on) {
-  creating = on;
-  $("createRoom").disabled = on;
-  $("createRoom").classList.toggle("is-loading", on);
-}
-
-/* ---------- rooms ---------- */
-async function createRoom() {
-  if (creating) return;
-  setCreating(true);
-  try {
-    const response = await fetch("/api/rooms", {
-      method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({code: $("code").value, language: $("language").value})
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not create workspace.");
-    roomId = data.id;
-    isOwner = true;
-    saveOwnerKey(roomId, data.ownerToken);
-    history.replaceState({}, "", "/room/" + roomId);
-    updateUrl();
-    socket.emit("join-room", {id: roomId, ownerToken: data.ownerToken});
-    showNotice("Workspace created and saved. Share the QR or link. You can lock editing at any time.", "good");
-  } catch (error) {
-    showNotice(error.message, "bad");
-  } finally {
-    setCreating(false);
-  }
-}
-function joinFromPath() {
-  const match = location.pathname.match(/^\/room\/([A-Za-z0-9_-]+)$/);
-  if (!match) return false;
-  roomId = match[1];
-  updateUrl();
-  socket.emit("join-room", {id: roomId, ownerToken: getOwnerKey(roomId)});
-  return true;
-}
-$("createRoom").addEventListener("click", createRoom);
-$("newRoom").addEventListener("click", () => {
-  roomId = null;
-  isOwner = false; isLocked = false; applyPermissions();
-  history.replaceState({}, "", "/");
-  $("shareLink").value = "";
-  $("qr").classList.add("hidden");
-  $("qr").removeAttribute("src");
-  $("qrPlaceholder").classList.remove("hidden");
-  $("roomPill").textContent = "New workspace";
-  $("roomPill").classList.remove("live");
-  showNotice("Your current text remains in the editor. Create a new workspace when ready.");
-  setStatus("Not connected", false);
-});
-$("code").addEventListener("input", () => {
-  updateCount();
-  if (isApplyingRemote) return;
-  if ($("code").value.length > MAX_CODE_LENGTH) {
-    showNotice("Maximum code length is 80,000 characters.", "bad");
-    return;
-  }
-  if (!roomId) { $("syncState").textContent = "Not shared yet"; return; }
-  if (isLocked && !isOwner) return;
-  $("syncState").textContent = "Syncing…";
-  clearTimeout(sendTimer);
-  sendTimer = setTimeout(() => {
-    socket.emit("edit", {id: roomId, code: $("code").value, language: $("language").value});
-    $("syncState").textContent = "Synced and saved";
-  }, 100);
-});
-$("language").addEventListener("change", () => {
-  if (roomId && (!isLocked || isOwner)) socket.emit("edit", {id: roomId, code: $("code").value, language: $("language").value});
-});
-$("copyLink").addEventListener("click", async () => {
-  if (!$("shareLink").value) return showNotice("Create a workspace first.");
-  try { await navigator.clipboard.writeText($("shareLink").value); flashLabel($("copyLink"), "Copied"); showNotice("Workspace link copied.", "good"); }
-  catch { $("shareLink").select(); showNotice("Select and copy the link manually."); }
-});
-$("copyCode").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText($("code").value); flashLabel($("copyCode"), "Copied"); showNotice("Code copied to clipboard.", "good"); }
-  catch { $("code").focus(); $("code").select(); showNotice("Code selected. Copy it with Ctrl+C (or Cmd+C on Mac)."); }
-});
-$("lockBtn").addEventListener("click", () => {
-  if (!roomId || !isOwner) return;
-  socket.emit("set-lock", {id: roomId, ownerToken: getOwnerKey(roomId), locked: !isLocked});
-});
-
-/* ---------- socket events ---------- */
-socket.on("connect", () => {
-  setStatus("Connected", true);
-  if (roomId) socket.emit("join-room", {id: roomId, ownerToken: getOwnerKey(roomId)});
-});
-socket.on("disconnect", () => setStatus("Reconnecting…", false));
-socket.on("room-state", state => {
-  roomId = state.id;
-  isOwner = Boolean(state.isOwner);
-  isLocked = Boolean(state.locked);
-  isApplyingRemote = true;
-  $("code").value = state.code;
-  $("language").value = state.language || "Plain text";
-  isApplyingRemote = false;
-  updateCount(); updateUrl(); applyPermissions(); scheduleHighlight();
-  setStatus(state.participants + " connected", true);
-  if (!isLocked) showNotice(isOwner ? "Owner workspace connected. You can share the QR/link and control editing access." : "Connected to shared workspace. Edits sync live and are saved.", "good");
-});
-socket.on("presence", data => setStatus(data.participants + " connected", true));
-socket.on("remote-edit", data => {
-  isApplyingRemote = true;
-  const start = $("code").selectionStart, end = $("code").selectionEnd;
-  $("code").value = data.code;
-  $("language").value = data.language || "Plain text";
-  $("code").setSelectionRange(Math.min(start, data.code.length), Math.min(end, data.code.length));
-  isApplyingRemote = false;
-  updateCount(); scheduleHighlight();
-  $("syncState").textContent = isLocked && !isOwner ? "Read-only · copying allowed" : "Live update received";
-});
-socket.on("lock-state", data => {
-  isLocked = Boolean(data.locked);
-  if (typeof data.isOwner === "boolean") isOwner = data.isOwner;
-  applyPermissions();
-  if (isOwner) showNotice(isLocked ? "Editing locked. Visitors can view and copy code; only you can edit." : "Editing unlocked. Everyone with the link can edit again.", "good");
-});
-socket.on("permission-error", message => showNotice(message, "bad"));
-socket.on("room-error", message => {
-  showNotice(message, "bad");
-  setStatus("Room unavailable", false);
-});
-
-
-/* ---------- syntax highlighting ---------- */
-const KW = s => new Set(s.split(" "));
-const LIT = KW("true false null undefined None True False nil NULL this self super");
-const END = "(?![\\s\\S])";   // true end of input (not end of line)
-const LANGS = {
-  JavaScript:{kw:KW("var let const function return if else for while do switch case break continue new delete typeof instanceof in of class extends import export from default async await try catch finally throw yield static get set void with debugger"),lc:["//"],bc:true,q:"\"'`"},
-  TypeScript:{kw:KW("var let const function return if else for while do switch case break continue new delete typeof instanceof in of class extends implements import export from default async await try catch finally throw yield static get set void interface type enum namespace public private protected readonly abstract declare as is keyof"),lc:["//"],bc:true,q:"\"'`"},
-  Python:{kw:KW("def class return if elif else for while break continue pass import from as with try except finally raise lambda yield global nonlocal assert del in is not and or async await match case"),lc:["#"],q:"\"'",py:true},
-  Java:{kw:KW("abstract assert boolean break byte case catch char class const continue default do double else enum extends final finally float for if implements import instanceof int interface long native new package private protected public return short static strictfp super switch synchronized this throw throws transient try void volatile while var record"),lc:["//"],bc:true,q:"\"'"},
-  C:{kw:KW("auto break case char const continue default do double else enum extern float for goto if inline int long register restrict return short signed sizeof static struct switch typedef union unsigned void volatile while"),lc:["//"],bc:true,q:"\"'",pp:true},
-  "C++":{kw:KW("auto break case catch char class const constexpr continue default delete do double else enum explicit extern float for friend goto if inline int long namespace new noexcept nullptr operator private protected public register return short signed sizeof static struct switch template this throw try typedef typename union unsigned using virtual void volatile while bool override final"),lc:["//"],bc:true,q:"\"'",pp:true},
-  "C#":{kw:KW("abstract as base bool break byte case catch char checked class const continue decimal default delegate do double else enum event explicit extern finally fixed float for foreach goto if implicit in int interface internal is lock long namespace new object operator out override params private protected public readonly ref return sbyte sealed short sizeof static string struct switch this throw try typeof uint ulong unchecked unsafe ushort using var virtual void volatile while async await record"),lc:["//"],bc:true,q:"\"'"},
-  Go:{kw:KW("break case chan const continue default defer else fallthrough for func go goto if import interface map package range return select struct switch type var"),lc:["//"],bc:true,q:"\"'`"},
-  Rust:{kw:KW("as async await break const continue crate dyn else enum extern fn for if impl in let loop match mod move mut pub ref return self Self static struct super trait type unsafe use where while"),lc:["//"],bc:true,q:"\"'"},
-  PHP:{kw:KW("abstract and array as break callable case catch class clone const continue declare default do echo else elseif empty extends final finally fn for foreach function global if implements include include_once instanceof interface isset list namespace new or print private protected public require require_once return static switch throw trait try unset use var while yield"),lc:["//","#"],bc:true,q:"\"'",dollar:true},
-  Ruby:{kw:KW("alias and begin break case class def defined do else elsif end ensure for if in module next not or redo rescue retry return then undef unless until when while yield puts require"),lc:["#"],q:"\"'"},
-  Swift:{kw:KW("associatedtype class deinit enum extension fileprivate func import init inout internal let open operator private protocol public rethrows static struct subscript typealias var break case continue default defer do else fallthrough for guard if in repeat return switch where while as catch throw throws try async await"),lc:["//"],bc:true,q:"\"'"},
-  Kotlin:{kw:KW("as break class continue do else for fun if in interface is object package return super this throw try typealias val var when while by catch constructor finally import init override open private protected public internal data sealed companion suspend"),lc:["//"],bc:true,q:"\"'"},
-  SQL:{kw:KW("select from where insert into values update set delete create table alter drop index view join inner left right outer full on group by order having limit offset as and or not null is in like between distinct union all case when then else end primary key foreign references default unique constraint exists count sum avg min max asc desc"),lc:["--"],bc:true,q:"\"'",ci:true},
-  Shell:{kw:KW("if then else elif fi for while until do done case esac in function select return exit export local readonly echo cd ls cat grep sed awk"),lc:["#"],q:"\"'`",dollar:true},
-  YAML:{kw:KW(""),lc:[],q:"",yaml:true},
-  Markdown:{kw:KW(""),lc:[],q:"",md:true},
-  CSS:{kw:KW(""),lc:[],q:"",css:true},
-  HTML:{kw:KW(""),lc:[],q:"",html:true},
-  JSON:{kw:KW(""),lc:[],q:"",json:true},
-  Other:{kw:KW("if else for while do return function class def var let const import from new try catch end begin then switch case break continue public private static void int string true false null"),lc:["//","#"],bc:true,q:"\"'"},
-  "Plain text":null
-};
-const esc = s => s.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-const wrapTok = (cls, s) => cls ? `<span class="t-${cls}">${esc(s)}</span>` : esc(s);
-const reEsc = s => s.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&");
-const DQ = "\"(?:\\\\.|[^\"\\\\\\n])*\"?";
-const SQ = "'(?:\\\\.|[^'\\\\\\n])*'?";
-const regexCache = {};
-
-function buildRegex(name, cfg) {
-  if (regexCache[name]) return regexCache[name];
-  const parts = [], kinds = [];
-  const add = (src, kind) => { parts.push("(" + src + ")"); kinds.push(kind); };
-  if (cfg.html) {
-    add("<!--[\\s\\S]*?(?:-->|" + END + ")", "com");
-    add("<\\/?[A-Za-z][\\w:-]*", "tag");
-    add("\\/?>", "tag");
-    add("\"[^\"]*\"?|'[^']*'?", "str");
-    add("[A-Za-z_:][\\w:.-]*(?=\\s*=)", "attr");
-    add("&[#\\w]+;", "num");
-  } else if (cfg.css) {
-    add("\\/\\*[\\s\\S]*?(?:\\*\\/|" + END + ")", "com");
-    add(DQ + "|" + SQ, "str");
-    add("@[\\w-]+", "kw");
-    add("#[0-9a-fA-F]{3,8}\\b", "num");
-    add("-?\\d*\\.?\\d+(?:px|em|rem|%|vh|vw|s|ms|deg|fr)?\\b", "num");
-    add("--[\\w-]+|[A-Za-z-]+(?=\\s*:[^;{}]*[;}\\n])", "prop");
-    add("[.#][A-Za-z_][\\w-]*", "type");
-    add("[A-Za-z][\\w-]*(?=\\()", "fn");
-  } else if (cfg.json) {
-    add("\"(?:\\\\.|[^\"\\\\\\n])*\"(?=\\s*:)", "prop");
-    add(DQ, "str");
-    add("-?\\d+\\.?\\d*(?:[eE][+-]?\\d+)?", "num");
-    add("\\b(?:true|false|null)\\b", "lit");
-  } else if (cfg.yaml) {
-    add("#.*", "com");
-    add(DQ + "|'[^'\\n]*'?", "str");
-    add("^[ \\t-]*[\\w.\\/-]+(?=\\s*:)", "prop");
-    add("-?\\b\\d+\\.?\\d*\\b", "num");
-    add("\\b(?:true|false|null|yes|no)\\b", "lit");
-  } else if (cfg.md) {
-    add("^#{1,6}[ \\t].*", "head");
-    add("`{3}[\\s\\S]*?(?:`{3}|" + END + ")|`[^`\\n]*`?", "str");
-    add("\\*\\*[^*\\n]+\\*\\*?|__[^_\\n]+__?", "kw");
-    add("^[ \\t]*(?:[-*+]|\\d+\\.)[ \\t]", "num");
-    add("\\[[^\\]\\n]*\\]\\([^)\\n]*\\)?", "fn");
-  } else {
-    if (cfg.bc) add("\\/\\*[\\s\\S]*?(?:\\*\\/|" + END + ")", "com");
-    cfg.lc.forEach(c => add(reEsc(c) + ".*", "com"));
-    if (cfg.pp) add("^[ \\t]*#[ \\t]*\\w+", "kw");
-    if (cfg.py) add("\"{3}[\\s\\S]*?(?:\"{3}|" + END + ")|'{3}[\\s\\S]*?(?:'{3}|" + END + ")", "str");
-    if (cfg.q.includes("`")) add("`(?:\\\\[\\s\\S]|[^`\\\\])*`?", "str");
-    if (cfg.q.includes("\"")) add(DQ, "str");
-    if (cfg.q.includes("'")) add(SQ, "str");
-    add("\\b(?:0[xX][\\da-fA-F]+|\\d[\\d_]*\\.?\\d*(?:[eE][+-]?\\d+)?)\\b", "num");
-    add((cfg.dollar ? "\\$?" : "") + "[A-Za-z_]\\w*", "word");
-    add("[+\\-*/%=<>!&|^~?:]+", "op");
-  }
-  return regexCache[name] = { re: new RegExp(parts.join("|"), "gm"), kinds };
-}
-
-function highlight(code, name) {
-  const cfg = LANGS[name];
-  if (!cfg) return esc(code);
-  const { re, kinds } = buildRegex(name, cfg);
-  re.lastIndex = 0;
-  let out = "", last = 0, m;
-  while ((m = re.exec(code))) {
-    if (m[0] === "") { re.lastIndex++; continue; }
-    out += esc(code.slice(last, m.index));
-    let kind = null;
-    for (let i = 0; i < kinds.length; i++) if (m[i + 1] !== undefined) { kind = kinds[i]; break; }
-    const text = m[0];
-    if (kind === "word") {
-      const bare = text.replace(/^\$/, ""), key = cfg.ci ? bare.toLowerCase() : bare;
-      const next = code.slice(re.lastIndex, re.lastIndex + 40).match(/^\s*(.)/);
-      if (cfg.kw.has(key)) kind = "kw";
-      else if (LIT.has(bare)) kind = "lit";
-      else if (next && next[1] === "(") kind = "fn";
-      else if (/^[A-Z]\w*$/.test(bare) && /[a-z]/.test(bare)) kind = "type";
-      else if (cfg.dollar && text[0] === "$") kind = "prop";
-      else kind = null;
-    } else if (kind === "op") kind = "op";
-    out += wrapTok(kind, text);
-    last = re.lastIndex;
-  }
-  return out + esc(code.slice(last));
-}
-
-function detectLanguage(code) {
-  const t = code.trim();
-  if (!t) return "Plain text";
-  if (/^<\?php/.test(t)) return "PHP";
-  if (/^#!.*\bsh\b/.test(t)) return "Shell";
-  if (/^<!doctype html|^<html|^<(div|body|head|section|p|span|a|ul|script|style)\b/i.test(t)) return "HTML";
-  if (/^[{[]/.test(t)) { try { JSON.parse(t); return "JSON"; } catch {} }
-  if (/^\s*(select|insert\s+into|update\s+\w+\s+set|create\s+table|delete\s+from|alter\s+table)\b/im.test(t)) return "SQL";
-  if (/^\s*package\s+\w+\s*$/m.test(t) && /\bfunc\b/.test(t) || /\bfunc\s+\w+\(/.test(t) && /:=/.test(t)) return "Go";
-  if (/\bfn\s+\w+\s*\(|\blet\s+mut\b|println!\(|\bimpl\b.*\{/.test(t)) return "Rust";
-  if (/#include\s*<.*>/.test(t)) return /std::|cout|\bclass\b|template\s*</.test(t) ? "C++" : "C";
-  if (/\busing\s+System|\bnamespace\s+\w+|Console\.Write/.test(t)) return "C#";
-  if (/System\.out\.print|public\s+(static\s+)?(class|void)|import\s+java\./.test(t)) return "Java";
-  if (/^\s*(def\s+\w+\(.*\)\s*:|class\s+\w+(\(.*\))?\s*:|import\s+\w+|from\s+\w+\s+import|elif\b|print\()/m.test(t) && !/[;{]\s*$/m.test(t)) return "Python";
-  if (/^\s*(fun\s+\w+|val\s+\w+\s*[:=]|data\s+class)/m.test(t)) return "Kotlin";
-  if (/^\s*(func\s+\w+\(|let\s+\w+\s*:\s*\w+|guard\s+let)/m.test(t) && !/:=/.test(t)) return "Swift";
-  if (/^\s*end\s*$/m.test(t) && /^\s*(def\s+\w+|puts\s|require\s+['"])/m.test(t)) return "Ruby";
-  if (/(^|\n)\s*[.#@]?[\w-][\w\s.#:>,-]*\{[^}]*:[^}]*;/.test(t) && !/\b(function|const|let|var)\b/.test(t)) return "CSS";
-  if (/\binterface\s+\w+|:\s*(string|number|boolean)\b|\benum\s+\w+/.test(t) && /\b(const|let|function|class|type|interface)\b/.test(t)) return "TypeScript";
-  if (/\b(const|let|var|function|console\.|require\(|import .* from)|=>/.test(t)) return "JavaScript";
-  if (/^#{1,6}\s\S/m.test(t)) return "Markdown";
-  if (/^[\w.-]+:\s*\S*$/m.test(t) && !/[;{}()]/.test(t)) return "YAML";
-  return "Plain text";
-}
-
-const hlCode = document.querySelector("#hl code");
-let hlFrame = 0;
-function syncScroll() {
-  hlCode.style.transform = `translate(${-$("code").scrollLeft}px, ${-$("code").scrollTop}px)`;
-}
-function renderHighlight() {
-  hlFrame = 0;
-  const code = $("code").value;
-  let name = $("language").value;
-  if (name === "Auto detect") name = detectLanguage(code);
-  hlCode.innerHTML = highlight(code, name) + "\n";
-  syncScroll();
-}
-function scheduleHighlight() { if (!hlFrame) hlFrame = requestAnimationFrame(renderHighlight); }
-$("code").addEventListener("input", scheduleHighlight);
-$("code").addEventListener("scroll", syncScroll, { passive: true });
-$("language").addEventListener("change", scheduleHighlight);
-if (window.ResizeObserver) new ResizeObserver(syncScroll).observe($("code"));
-
-/* ---------- terms dialog ---------- */
-const terms = $("terms");
-$("termsBtn").addEventListener("click", () => terms.showModal());
-function closeTerms() {
-  if (reduceMotion) return terms.close();
-  terms.classList.add("closing");
-  setTimeout(() => { terms.close(); terms.classList.remove("closing"); }, 220);
-}
-$("closeTerms").addEventListener("click", closeTerms);
-terms.addEventListener("cancel", e => { e.preventDefault(); closeTerms(); });
-terms.addEventListener("click", e => { if (e.target === terms) closeTerms(); });
-
-/* ---------- footer credit: split into words for the reveal ---------- */
-(() => {
-  const el = $("crown");
-  el.innerHTML = el.textContent.split(" ").map((w, i) => `<span class="w" style="--i:${i}">${w}</span>`).join(" ");
-})();
-
-updateCount(); scheduleHighlight();
-if (!joinFromPath()) setStatus("Not connected", false);
-})();
-</script>
+<script src="/app.js"></script>
 </body></html>

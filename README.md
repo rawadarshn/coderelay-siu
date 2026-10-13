@@ -3,6 +3,12 @@
 
 Real-time team code editor. Share a QR code or link and edit the same code live. Workspaces are saved in Supabase, so they survive server restarts and redeploys, and edits made by anyone with the link are kept.
 
+## What's new in this version
+- **Console:** press Run (or Ctrl+Enter) to run JavaScript or Python. Code runs in a sandboxed page in your own browser, with no access to this site's data, no network, and a 5 second limit (Python: 30 s, first run downloads the runtime).
+- **Merge-safe live editing:** two people typing at once no longer overwrite each other.
+- **Encrypted at rest:** the server now requires `ENCRYPTION_KEY` (see `.env.example`) and refuses to start without it. Back the key up.
+- Strict security headers, rate limits, and a sandbox for running code. Check everything with `node test/ot.test.js` and `node test/server.test.js`.
+
 ## 1. Set up Supabase (once)
 1. Create a project at https://supabase.com.
 2. Open **SQL Editor**, paste the contents of `supabase/schema.sql`, and run it.
