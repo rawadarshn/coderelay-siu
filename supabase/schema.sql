@@ -27,5 +27,14 @@ alter table public.users enable row level security;
 -- If this fails, you already have two users with the same name: rename or delete one first.
 create unique index if not exists users_name_lower_key on public.users (lower(name));
 
--- Makes the API notice new tables right away.
+-- Roles (tags only): a user can be an "admin" or a "moderator", or have no role. The developer (user #1) is never given a role.
+alter table public.users add column if not exists role text null;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'users_role_check' and conrelid = 'public.users'::regclass) then
+    alter table public.users add constraint users_role_check check (role is null or role in ('admin', 'moderator'));
+  end if;
+end $$;
+
+-- Makes the API notice new tables and columns right away.
 notify pgrst, 'reload schema';

@@ -192,5 +192,56 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   db.upsertHistory = realUp;
   console.log("ok  missing history table: workspace still saves (encrypted) and deletes; no crash, no endless retries");
 
+  // --- roles: admin / moderator tags, given only by the developer (#1) ---
+  const post = (cookie, body, extra = {}) => fetch(base + "/api/roles", { method: "POST", headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}), ...extra }, body: JSON.stringify(body) });
+  assert.strictEqual((await post(null, { userNumber: 3, role: "admin" })).status, 404, "anonymous gets 404");
+  assert.strictEqual((await post(ub.cookie, { userNumber: 3, role: "admin" })).status, 404, "a normal user gets 404");
+  assert.strictEqual((await post(uc.cookie, { userNumber: 2, role: "admin" })).status, 404, "a user can't promote others or themselves");
+  assert.strictEqual((await fetch(base + "/api/roles?q=a")).status, 404);
+  assert.strictEqual((await fetch(base + "/api/roles?q=a", { headers: { cookie: ub.cookie } })).status, 404);
+  assert.strictEqual((await post(ua.cookie, { userNumber: 3, role: "developer" })).status, 400, "developer is not a role");
+  for (const bad of ["owner", "Admin", "", 1, {}, ["admin"]]) assert.strictEqual((await post(ua.cookie, { userNumber: 3, role: bad })).status, 400, "invalid role " + JSON.stringify(bad));
+  for (const bad of ["3", 0, -2, 1.5, null, undefined]) assert.strictEqual((await post(ua.cookie, { userNumber: bad, role: "admin" })).status, 400, "invalid number " + JSON.stringify(bad));
+  assert.strictEqual((await post(ua.cookie, { userNumber: 1, role: null })).status, 403, "developer can't be demoted");
+  assert.strictEqual((await post(ua.cookie, { userNumber: 1, role: "admin" })).status, 403, "developer can't be changed");
+  assert.strictEqual((await post(ua.cookie, { userNumber: 9999, role: "admin" })).status, 404);
+  assert.strictEqual((await post(ua.cookie, { userNumber: 3, role: "admin" }, { origin: "http://evil.example" })).status, 403, "cross-site requests refused");
+  assert.strictEqual((await (await fetch(base + "/api/me", { headers: { cookie: uc.cookie } })).json()).user.role, null);
+  console.log("ok  roles: only #1 can change roles (everyone else gets 404); #1 can't be changed; 'developer' and other values are rejected; cross-site refused");
+
+  const c4 = await (await fetch(base + "/api/rooms", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code: "roles" }) })).json();
+  A.emit("join-room", { id: c4.id, ownerToken: c4.ownerToken }); const r4a = await A.next("room-state");
+  C.emit("join-room", { id: c4.id }); const r4c = await C.next("room-state");
+  assert.strictEqual(r4a.you.dev, true); assert.strictEqual(r4a.you.role, null); assert.strictEqual(r4c.you.role, null);
+  await sleep(200);
+  let presA = A.next("presence"), meC = C.next("me-updated");
+  const given = await post(ua.cookie, { userNumber: 3, role: "moderator" });
+  assert.strictEqual(given.status, 200); assert.strictEqual((await given.json()).user.role, "moderator");
+  const pa = await presA, me1 = await meC;
+  assert.strictEqual(pa.peers.find(p => p.uid === 3).role, "moderator", "presence updates live for others");
+  assert.strictEqual(me1.user.role, "moderator", "the person's own sockets are told too");
+  assert.strictEqual(pa.peers.find(p => p.uid === 1).role, null); assert.strictEqual(pa.peers.find(p => p.uid === 1).dev, true);
+  assert.strictEqual((await (await fetch(base + "/api/me", { headers: { cookie: uc.cookie } })).json()).user.role, "moderator");
+  B.emit("join-room", { id: c4.id }); const r4b = await B.next("room-state");
+  assert.strictEqual(r4b.peers.find(p => p.uid === 3).role, "moderator", "join state carries the role");
+  C.emit("join-room", { id: c4.id }); const r4c2 = await C.next("room-state");
+  assert.strictEqual(r4c2.you.role, "moderator", "'you' carries the role");
+  await sleep(200);
+  presA = A.next("presence"); const presB = B.next("presence");
+  await post(ua.cookie, { userNumber: 3, role: "admin" });
+  assert.strictEqual((await presA).peers.find(p => p.uid === 3).role, "admin"); assert.strictEqual((await presB).peers.find(p => p.uid === 3).role, "admin");
+  assert.strictEqual((await (await fetch(base + "/api/me", { headers: { cookie: uc.cookie } })).json()).user.role, "admin");
+  console.log("ok  roles: shown in /api/me, join state ('you' and peers) and presence; a change reaches connected sockets live");
+
+  await sleep(200); presA = A.next("presence"); meC = C.next("me-updated");
+  const cleared = await post(ua.cookie, { userNumber: 3, role: null });
+  assert.strictEqual(cleared.status, 200);
+  assert.strictEqual((await presA).peers.find(p => p.uid === 3).role, null); assert.strictEqual((await meC).user.role, null);
+  assert.strictEqual((await (await fetch(base + "/api/me", { headers: { cookie: uc.cookie } })).json()).user.role, null);
+  const found = await (await fetch(base + "/api/roles?q=kab", { headers: { cookie: ua.cookie } })).json();
+  assert.deepStrictEqual(found.users.map(u => [u.id, u.role]), [[3, null]]);
+  assert.strictEqual((await (await fetch(base + "/api/me", { headers: { cookie: ua.cookie } })).json()).user.dev, true);
+  console.log("ok  roles: clearing a role (null) removes the tag everywhere; the developer search works; developer stays developer");
+
   [A, B, C].forEach(c => c.close()); server.close(); setTimeout(() => process.exit(0), 100);
 })().catch(e => { console.error("FAIL", e); process.exit(1); });

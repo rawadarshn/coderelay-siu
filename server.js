@@ -27,6 +27,8 @@ const HISTORY_FIRST_PAGE = 50;
 const COALESCE_MS = 8000;       // typing by one person within this window becomes one history entry
 const SNIPPET_MAX_CHARS = 4000;
 const SNIPPET_MAX_LINES = 60;
+const ROLES = ["admin", "moderator"];                       // the only roles that can be given; "developer" is never a role
+const roleOf = (id, role) => (Number(id) === DEV_ID ? null : ROLES.includes(role) ? role : null);
 const DEV_ID = Number(process.env.DEVELOPER_USER_ID || 1);   // the developer account (user #1 unless you change it in .env)
 const PALETTE = ["#e8a33d", "#3fb8af", "#6fa8ff", "#b58cff", "#7bd88f", "#ff7eb6", "#d4d46a", "#f08a5d"];
 
@@ -89,9 +91,17 @@ function supabaseDb() {
       return data || [];
     },
     async upsertHistory(rows) { if (rows.length) chk(await c.from("room_history").upsert(rows)); },
-    async getUserByHash(h) { return chk(await c.from("users").select("id,name").eq("token_hash", h).maybeSingle()); },
+    async getUserByHash(h) { return chk(await c.from("users").select("id,name,role").eq("token_hash", h).maybeSingle()); },
+    async getUserById(id) { return chk(await c.from("users").select("id,name,role").eq("id", id).maybeSingle()); },
+    async setUserRole(id, role) { chk(await c.from("users").update({ role }).eq("id", id)); },
+    async searchUsers(q) {
+      const rows = new Map(), add = d => (d || []).forEach(r => rows.set(Number(r.id), r));
+      if (/^#?\d{1,15}$/.test(q)) add(chk(await c.from("users").select("id,name,role").eq("id", Number(q.replace("#", ""))).limit(1)));
+      add(chk(await c.from("users").select("id,name,role").ilike("name", "%" + q.replace(/[\\%_]/g, "\\$&") + "%").order("id").limit(10)));
+      return [...rows.values()].slice(0, 10);
+    },
     async createUser(h, name) {
-      const { data, error } = await c.from("users").insert({ token_hash: h, name }).select("id,name").single();
+      const { data, error } = await c.from("users").insert({ token_hash: h, name }).select("id,name,role").single();
       if (error) { if (error.code === "23505") throw Object.assign(new Error("taken"), { taken: true }); throw error; }
       return data;
     },
@@ -119,10 +129,16 @@ function memoryDb() {
     },
     async upsertHistory(rows) { for (const r of rows) { if (!hist.has(r.room_id)) hist.set(r.room_id, new Map()); hist.get(r.room_id).set(r.id, { ...r }); } },
     async getUserByHash(h) { return users.get(h) || null; },
+    async getUserById(id) { return [...users.values()].find(u => u.id === id) || null; },
+    async setUserRole(id, role) { const u = [...users.values()].find(x => x.id === id); if (u) u.role = role; },
+    async searchUsers(q) {
+      const k = q.toLowerCase(), n = /^#?\d{1,15}$/.test(q) ? Number(q.replace("#", "")) : null;
+      return [...users.values()].filter(u => u.id === n || u.name.toLowerCase().includes(k)).slice(0, 10).map(u => ({ id: u.id, name: u.name, role: u.role || null }));
+    },
     async nameTaken(name) { return [...users.values()].some(u => u.name.toLowerCase() === name.toLowerCase()); },
     async createUser(h, name) {
       if (await this.nameTaken(name)) throw Object.assign(new Error("taken"), { taken: true });
-      const row = { id: nextUser++, name }; users.set(h, row); return row;
+      const row = { id: nextUser++, name, role: null }; users.set(h, row); return row;
     },
     async pruneHistory() {},
     async deleteRoom(id) { rooms.delete(id); hist.delete(id); }
@@ -244,7 +260,7 @@ function peersOf(room) {
   const out = [];
   for (const sid of room.sockets) {
     const s = io.sockets.sockets.get(sid);
-    if (s && s.data.author) out.push({ pid: sid, aid: s.data.author.aid, uid: s.data.author.uid, dev: Number(s.data.author.uid) === DEV_ID, name: s.data.author.name, color: s.data.author.color, owner: Boolean(s.data.isOwner), cursor: s.data.cursor || null });
+    if (s && s.data.author) out.push({ pid: sid, aid: s.data.author.aid, uid: s.data.author.uid, dev: Number(s.data.author.uid) === DEV_ID, role: roleOf(s.data.author.uid, s.data.author.role), name: s.data.author.name, color: s.data.author.color, owner: Boolean(s.data.isOwner), cursor: s.data.cursor || null });
   }
   return out;
 }
@@ -252,7 +268,7 @@ const entryOut = e => ({ id: e.id, ts: e.ts, aid: e.aid, author: e.author, color
 function publicState(id, room, socket) {
   return {
     id, code: room.code, language: room.language, rev: room.rev, locked: room.locked,
-    isOwner: Boolean(socket.data.isOwner), you: { pid: socket.id, aid: socket.data.author.aid, name: socket.data.author.name, color: socket.data.author.color, dev: Number(socket.data.author.uid) === DEV_ID },
+    isOwner: Boolean(socket.data.isOwner), you: { pid: socket.id, aid: socket.data.author.aid, name: socket.data.author.name, color: socket.data.author.color, dev: Number(socket.data.author.uid) === DEV_ID, role: roleOf(socket.data.author.uid, socket.data.author.role) },
     peers: peersOf(room), history: room.history.slice(-HISTORY_FIRST_PAGE).map(entryOut).reverse(), historyTotal: room.history.length
   };
 }
@@ -462,7 +478,7 @@ async function userFromCookie(header) {
   if (userCache.has(h)) return userCache.get(h);
   const row = await db.getUserByHash(h);
   if (!row) return null;
-  const u = { id: Number(row.id), name: row.name, dev: Number(row.id) === DEV_ID };
+  const u = { id: Number(row.id), name: row.name, dev: Number(row.id) === DEV_ID, role: roleOf(row.id, row.role) };
   if (userCache.size > 5000) userCache.clear();
   userCache.set(h, u);
   return u;
@@ -490,10 +506,52 @@ app.post("/api/me", ipLimit("user", 20 / 3600, 10), async (req, res) => {
     const token = crypto.randomBytes(32).toString("base64url");
     const row = await db.createUser(tokenHash(token).toString("hex"), name);
     res.append("Set-Cookie", `cr_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=315360000${req.secure ? "; Secure" : ""}`);
-    res.json({ user: { id: Number(row.id), name: row.name, dev: Number(row.id) === DEV_ID } });
+    res.json({ user: { id: Number(row.id), name: row.name, dev: Number(row.id) === DEV_ID, role: roleOf(row.id, row.role) } });
   } catch (err) {
     if (err && err.taken) return res.status(409).json({ error: "That name is already taken. Please choose another.", taken: true });
     console.error("[CodeRelay] Create user failed:", err.message || err); res.status(500).json({ error: "Could not save your name. Please try again." }); }
+});
+// ---------- roles: only the developer can give or remove them ----------
+const notFound = res => res.status(404).type("text/plain").send("Not found");
+async function developerOnly(req, res) {
+  const u = await userFromCookie(req.headers.cookie).catch(() => null);
+  if (!u || !u.dev) { notFound(res); return null; }
+  return u;
+}
+function applyRoleLive(id, role) {
+  for (const u of userCache.values()) if (u.id === id) u.role = role;                 // later requests see the new role
+  const touched = new Set();
+  for (const s of io.sockets.sockets.values()) {
+    if (s.data.uid !== id && !(s.data.author && s.data.author.uid === id)) continue;
+    if (s.data.author) s.data.author.role = role;
+    s.emit("me-updated", { user: { id, name: s.data.author ? s.data.author.name : undefined, dev: false, role } });
+    if (s.data.roomId) touched.add(s.data.roomId);
+  }
+  for (const rid of touched) { const room = rooms.get(rid); if (room) io.to(rid).emit("presence", { peers: peersOf(room) }); }
+}
+app.get("/api/roles", ipLimit("roles-find", 2, 20), async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  if (!(await developerOnly(req, res))) return;
+  const q = cleanName(req.query.q);
+  if (!q) return res.json({ users: [] });
+  try { res.json({ users: (await db.searchUsers(q)).map(u => ({ id: Number(u.id), name: u.name, dev: Number(u.id) === DEV_ID, role: roleOf(u.id, u.role) })) }); }
+  catch (err) { console.error("[CodeRelay] Role search failed:", err.message || err); res.status(500).json({ error: "Could not search users." }); }
+});
+app.post("/api/roles", ipLimit("roles", 1, 40), async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  if (!(await developerOnly(req, res))) return;
+  if (!sameOrigin(req)) return res.status(403).json({ error: "Not allowed." });
+  const { userNumber, role } = req.body || {};
+  if (!Number.isInteger(userNumber) || userNumber < 1) return res.status(400).json({ error: "Enter a valid user number." });
+  if (role !== null && !ROLES.includes(role)) return res.status(400).json({ error: "Role must be admin, moderator, or none." });
+  if (userNumber === DEV_ID) return res.status(403).json({ error: "The developer account can't be changed." });
+  try {
+    const target = await db.getUserById(userNumber);
+    if (!target) return res.status(404).json({ error: "No user has that number." });
+    await db.setUserRole(userNumber, role);
+    applyRoleLive(userNumber, role);
+    res.json({ user: { id: userNumber, name: target.name, dev: false, role } });
+  } catch (err) { console.error("[CodeRelay] Role change failed:", err.message || err); res.status(500).json({ error: "Could not change the role." }); }
 });
 app.get("/room/:id", (_req, res) => { res.set("Cache-Control", "no-store"); res.sendFile(path.join(__dirname, "public", "index.html")); });
 app.use((_req, res) => res.status(404).type("text/plain").send("Not found"));
@@ -511,6 +569,7 @@ const io = new Server(server, {
 });
 
 io.on("connection", socket => {
+  userFromCookie(socket.request.headers.cookie).then(u => { if (u) socket.data.uid = u.id; }).catch(() => {});
   const limits = { op: mkBucket(60, 120), cursor: mkBucket(40, 60), misc: mkBucket(8, 20) };
   let strikes = 0;
   const guard = (kind, fn) => async (...args) => {
@@ -540,7 +599,7 @@ io.on("connection", socket => {
     }
     clearTimeout(room.evictTimer);
     socket.data.roomId = id; socket.data.isOwner = owner; socket.data.cursor = null;
-    socket.data.author = { aid: "u" + user.id, uid: user.id, name: user.name, color: pickColor(room, "u" + user.id) };
+    socket.data.author = { aid: "u" + user.id, uid: user.id, role: user.role, name: user.name, color: pickColor(room, "u" + user.id) };
     room.sockets.add(socket.id); socket.join(id);
     socket.emit("room-state", publicState(id, room, socket));
     socket.to(id).emit("presence", { peers: peersOf(room) });

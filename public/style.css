@@ -237,3 +237,37 @@ button.small{padding:5px 10px;font-size:12px}
 .ptag.dev-tag::before{content:"\2726";position:absolute;left:5px;top:50%;margin-top:-6px;font-size:10px;line-height:12px;animation:twinkle 1.8s ease-in-out infinite}
 .av.dev{border-color:transparent;color:#1b1b20;background:conic-gradient(from var(--a),#ffadad,#ffd6a5,#fdffb6,#caffbf,#9bf6ff,#a0c4ff,#bdb2ff,#ffc6ff,#ffadad);animation:peerin .4s var(--ease-out),spin-a 4s linear infinite;box-shadow:0 0 10px rgba(255,198,255,.55)}
 @media (prefers-reduced-motion:reduce){.rainbow,.peer.dev,.user-chip.dev,.av.dev,.ptag.dev-tag,.ptag.dev-tag::before{animation:none!important}}
+
+/* ---------- roles: admin (warm gold / amber / orange) and moderator (cool teal / cyan / sky / mint) ---------- */
+@keyframes glow-admin{0%,100%{box-shadow:0 0 12px -4px rgba(255,179,71,.5)}50%{box-shadow:0 0 22px -2px rgba(255,122,107,.7)}}
+b.role-admin,.pname.role-admin{background:linear-gradient(100deg,#ffd36e,#ffb347,#ff8c42,#ff7a6b,#ffd36e);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent;font-weight:800;animation:rbflow 4.2s linear infinite normal;filter:drop-shadow(0 0 7px rgba(255,122,107,.7))}
+.peer.role-admin,.user-chip.role-admin{border:1.5px solid transparent;animation:spin-a 5s linear infinite normal,glow-admin 3s ease-in-out infinite}
+.peer.role-admin{background:linear-gradient(var(--bg),var(--bg)) padding-box,conic-gradient(from var(--a),#ffd36e,#ffb347,#ff8c42,#ff7a6b,#ffd36e) border-box}
+.user-chip.role-admin{background:linear-gradient(var(--surface),var(--surface)) padding-box,conic-gradient(from var(--a),#ffd36e,#ffb347,#ff8c42,#ff7a6b,#ffd36e) border-box;display:inline-flex;align-items:center;gap:6px}
+.peer.role-admin.enter{animation:peerin .5s var(--ease-out),spin-a 5s linear infinite normal,glow-admin 3s ease-in-out infinite}
+.ptag.admin-tag{position:relative;border:0;padding:2px 9px 2px 17px;color:#1b1b20;font-weight:800;letter-spacing:.3px;background:linear-gradient(100deg,#ffd36e,#ffb347,#ff8c42,#ff7a6b,#ffd36e);background-size:300% 100%;animation:rbflow 3.6s linear infinite normal}
+.ptag.admin-tag::before{content:"\2605";position:absolute;left:5px;top:50%;margin-top:-6px;font-size:10px;line-height:12px;animation:twinkle 2.2s ease-in-out infinite}
+.av.role-admin{border-color:transparent;color:#1b1b20;-webkit-text-fill-color:#1b1b20;background:conic-gradient(from var(--a),#ffd36e,#ffb347,#ff8c42,#ff7a6b,#ffd36e);animation:peerin .4s var(--ease-out),spin-a 3.6s linear infinite normal;box-shadow:0 0 10px rgba(255,170,90,.55)}
+@keyframes glow-moderator{0%,100%{box-shadow:0 0 12px -4px rgba(34,211,238,.45)}50%{box-shadow:0 0 22px -2px rgba(94,234,212,.65)}}
+b.role-moderator,.pname.role-moderator{background:linear-gradient(100deg,#5eead4,#22d3ee,#7dd3fc,#99f6c4,#5eead4);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent;font-weight:800;animation:rbflow 6.5s linear infinite reverse;filter:drop-shadow(0 0 7px rgba(94,234,212,.65))}
+.peer.role-moderator,.user-chip.role-moderator{border:1.5px solid transparent;animation:spin-a 7.5s linear infinite reverse,glow-moderator 3.8s ease-in-out infinite}
+.peer.role-moderator{background:linear-gradient(var(--bg),var(--bg)) padding-box,conic-gradient(from var(--a),#5eead4,#22d3ee,#7dd3fc,#99f6c4,#5eead4) border-box}
+.user-chip.role-moderator{background:linear-gradient(var(--surface),var(--surface)) padding-box,conic-gradient(from var(--a),#5eead4,#22d3ee,#7dd3fc,#99f6c4,#5eead4) border-box;display:inline-flex;align-items:center;gap:6px}
+.peer.role-moderator.enter{animation:peerin .5s var(--ease-out),spin-a 7.5s linear infinite reverse,glow-moderator 3.8s ease-in-out infinite}
+.ptag.moderator-tag{position:relative;border:0;padding:2px 9px 2px 17px;color:#1b1b20;font-weight:800;letter-spacing:.3px;background:linear-gradient(100deg,#5eead4,#22d3ee,#7dd3fc,#99f6c4,#5eead4);background-size:300% 100%;animation:rbflow 5s linear infinite reverse}
+.ptag.moderator-tag::before{content:"\25C6";position:absolute;left:5px;top:50%;margin-top:-6px;font-size:10px;line-height:12px;animation:twinkle 2.2s ease-in-out infinite}
+.av.role-moderator{border-color:transparent;color:#1b1b20;-webkit-text-fill-color:#1b1b20;background:conic-gradient(from var(--a),#5eead4,#22d3ee,#7dd3fc,#99f6c4,#5eead4);animation:peerin .4s var(--ease-out),spin-a 5s linear infinite reverse;box-shadow:0 0 10px rgba(94,234,212,.5)}
+@media (prefers-reduced-motion:reduce){.role-admin,.role-moderator,.peer.role-admin,.peer.role-moderator,.user-chip.role-admin,.user-chip.role-moderator,.av.role-admin,.av.role-moderator,.ptag.admin-tag,.ptag.moderator-tag,.ptag.admin-tag::before,.ptag.moderator-tag::before{animation:none!important}}
+
+/* ---------- manage roles dialog (developer only) ---------- */
+#rolesDlg{max-width:520px}
+#rolesQ{width:100%;margin:6px 0 10px;padding:10px;border:1px solid var(--line-strong);border-radius:6px;background:var(--bg);font-size:14px}
+#rolesQ:focus{border-color:var(--red);outline:none}
+.roles-list{list-style:none;margin:0 0 6px;padding:0;display:grid;gap:6px;max-height:260px;overflow:auto}
+.roles-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);animation:peerin .3s var(--ease-out)}
+.roles-row .rname{flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.roles-row .rname small{color:var(--faint);font-weight:400;margin-left:6px}
+.roles-row select{margin:0}
+.roles-msg{font-size:12px;min-height:18px;margin:4px 0 0;color:var(--muted)}
+.roles-msg.bad{color:#ffb4ba}.roles-msg.ok{color:#8be0a0}
+

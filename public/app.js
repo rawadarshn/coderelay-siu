@@ -386,12 +386,16 @@ updateCount(); scheduleHighlight();
 
 /* ---------- your name and number (no login; kept by a session cookie) ---------- */
 const nameDlg = $("nameDlg");
+const roleOf = p => (!p.dev && (p.role === "admin" || p.role === "moderator")) ? p.role : null;   // the server decides; this only picks the look
 function showUser(u) {
-  curUser = u; const c = $("userChip"); c.textContent = ""; c.classList.toggle("dev", Boolean(u.dev));
-  const b = document.createElement("b"); b.textContent = u.name; if (u.dev) b.className = "rainbow";
+  curUser = u; const c = $("userChip"), role = roleOf(u); c.textContent = "";
+  c.classList.toggle("dev", Boolean(u.dev)); c.classList.remove("role-admin", "role-moderator"); if (role) c.classList.add("role-" + role);
+  const b = document.createElement("b"); b.textContent = u.name; if (u.dev) b.className = "rainbow"; else if (role) b.className = "role-" + role;
   c.append(b, " · #" + u.id);
   if (u.dev) { const t = document.createElement("span"); t.className = "ptag dev-tag"; t.textContent = "developer"; c.append(t); }
+  else if (role) { const t = document.createElement("span"); t.className = "ptag " + role + "-tag"; t.textContent = role; c.append(t); }
   c.classList.remove("hidden");
+  $("rolesBtn").classList.toggle("hidden", !u.dev);
 }
 function openNameDialog() { if (!nameDlg.open) { nameMsg("", ""); $("nameSave").disabled = false; nameDlg.showModal(); $("nameInput").focus(); } }
 nameDlg.addEventListener("cancel", e => e.preventDefault());   // a name is required
@@ -453,17 +457,19 @@ function renderPeers(peers) {
       peerRows.set(k, li); list.appendChild(li);
     }
     li.querySelector(".pdot").style.setProperty("--c", /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : "#9a9aa3");
-    li.classList.toggle("dev", Boolean(p.dev)); li.querySelector(".pname").textContent = p.name; li.querySelector(".pname").classList.toggle("rainbow", Boolean(p.dev));
+    const role = roleOf(p), pn = li.querySelector(".pname");
+    li.classList.toggle("dev", Boolean(p.dev)); pn.textContent = p.name; pn.classList.toggle("rainbow", Boolean(p.dev));
+    for (const r of ["admin", "moderator"]) { li.classList.toggle("role-" + r, role === r); pn.classList.toggle("role-" + r, role === r); }
     li.querySelector(".pmeta").textContent = "#" + p.uid + (p.n > 1 ? " · " + p.n + " tabs" : "");
     const tags = li.querySelector(".ptags"); tags.textContent = "";
     const tag = (t, cls) => { const s = document.createElement("span"); s.className = "ptag" + (cls ? " " + cls : ""); s.textContent = t; tags.appendChild(s); };
-    if (p.dev) tag("developer", "dev-tag");
+    if (p.dev) tag("developer", "dev-tag"); else if (role) tag(role, role + "-tag");
     if (curUser && p.uid === curUser.id) tag("you");
     if (p.owner) tag("owner");
   }
   const av = $("avatars"); av.textContent = "";
   [...byUser.values()].slice(0, 5).forEach(p => {
-    const s = document.createElement("span"); s.className = "av" + (p.dev ? " dev" : ""); s.textContent = (p.name || "?").trim().charAt(0).toUpperCase();
+    const s = document.createElement("span"); s.className = "av" + (p.dev ? " dev" : roleOf(p) ? " role-" + roleOf(p) : ""); s.textContent = (p.name || "?").trim().charAt(0).toUpperCase();
     s.style.setProperty("--c", /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : "#9a9aa3"); s.title = p.name + " (#" + p.uid + ")" + (curUser && p.uid === curUser.id ? " - you" : "");
     av.appendChild(s);
   });
@@ -474,6 +480,47 @@ function renderPeers(peers) {
     list.appendChild(li);
   }
 }
+socket.on("me-updated", d => { if (d && d.user && curUser && d.user.id === curUser.id) showUser({ ...curUser, ...d.user, name: curUser.name }); });
+
+/* ---------- manage roles (the button is only shown to the developer; the server checks every request) ---------- */
+const rolesDlg = $("rolesDlg"), rolesList = $("rolesList"), rolesMsg = $("rolesMsg");
+let rolesTimer = 0, rolesSeq = 0;
+function rolesNote(text, kind) { rolesMsg.textContent = text || ""; rolesMsg.className = "roles-msg" + (kind ? " " + kind : ""); }
+function roleRow(u) {
+  const li = document.createElement("li"); li.className = "roles-row";
+  const nm = document.createElement("span"); nm.className = "rname"; nm.textContent = u.name;
+  const num = document.createElement("small"); num.textContent = "#" + u.id; nm.append(num);
+  li.append(nm);
+  if (u.dev) { const t = document.createElement("span"); t.className = "ptag dev-tag"; t.textContent = "developer"; li.append(t); return li; }
+  const sel = document.createElement("select"); sel.setAttribute("aria-label", "Role for " + u.name);
+  [["", "None"], ["admin", "Admin"], ["moderator", "Moderator"]].forEach(([v, l]) => { const o = document.createElement("option"); o.value = v; o.textContent = l; sel.append(o); });
+  sel.value = u.role || "";
+  sel.addEventListener("change", async () => {
+    sel.disabled = true; rolesNote("Saving…");
+    try {
+      const r = await fetch("/api/roles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userNumber: u.id, role: sel.value || null }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "Could not change the role.");
+      u.role = d.user.role; rolesNote(u.name + " is now " + (u.role || "a regular user") + ".", "ok");
+    } catch (e) { sel.value = u.role || ""; rolesNote(e.message, "bad"); }
+    finally { sel.disabled = false; }
+  });
+  li.append(sel); return li;
+}
+async function rolesSearch() {
+  const q = $("rolesQ").value.trim(), seq = ++rolesSeq;
+  if (!q) { rolesList.textContent = ""; rolesNote(""); return; }
+  try {
+    const r = await fetch("/api/roles?q=" + encodeURIComponent(q));
+    if (!r.ok) throw new Error("Could not search.");
+    const d = await r.json(); if (seq !== rolesSeq) return;
+    rolesList.textContent = ""; (d.users || []).forEach(u => rolesList.append(roleRow(u)));
+    rolesNote(d.users && d.users.length ? "" : "No one found.");
+  } catch (e) { if (seq === rolesSeq) rolesNote(e.message, "bad"); }
+}
+$("rolesBtn").addEventListener("click", () => { rolesList.textContent = ""; rolesNote(""); $("rolesQ").value = ""; rolesDlg.showModal(); $("rolesQ").focus(); });
+$("rolesQ").addEventListener("input", () => { clearTimeout(rolesTimer); rolesTimer = setTimeout(rolesSearch, 300); });
+$("rolesClose").addEventListener("click", () => rolesDlg.close());
 renderPeers([]);
 if (!joinFromPath()) setStatus("Not connected", false);
 })();
